@@ -6,6 +6,9 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
+
+	"github.com/gorilla/mux"
 )
 
 type user struct {
@@ -102,4 +105,42 @@ func FindAllUsers(w http.ResponseWriter, r * http.Request){
 
 }
 //Search one user in the data base
-func FindUser(w http.ResponseWriter, r * http.Request){}
+func FindUser(w http.ResponseWriter, r * http.Request){
+	params := mux.Vars(r)
+	ID, err := strconv.ParseUint(params["id"], 10, 64)
+	if err != nil{
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("Error while trying to read the ID"))
+		return
+	}
+
+	db, err := database.Connect()
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("Internal Error"))
+		return
+	}
+	defer db.Close()
+	
+	row, err := db.Query("SELECT * FROM usuarios WHERE id = $1", ID)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("Internal Error, while trying to get the user in the data base"))
+		return
+	}
+	var u user 
+	if row.Next() {
+		if err := row.Scan(&u.ID,&u.Name, &u.Email); err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte("Internal Error, while trying to scan the user"))
+			return
+		}
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	if err := json.NewEncoder(w).Encode(u); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("Error while trying to convert the user to json"))
+		return
+	} 
+}
