@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+
 	"net/http"
 	"strconv"
 
@@ -181,7 +182,7 @@ func UpdateUser(w http.ResponseWriter, r *http.Request) {
 	statement, err := db.Prepare("UPDATE usuarios  SET nome = $1, email = $2 WHERE id = $3")
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte("Error while trying to Prepare the statment"+ err.Error()))
+		w.Write([]byte("Error while trying to Prepare the statment" + err.Error()))
 		return
 	}
 	defer statement.Close()
@@ -189,6 +190,38 @@ func UpdateUser(w http.ResponseWriter, r *http.Request) {
 	if _, err := statement.Exec(userToUpdate.Name, userToUpdate.Email, ID); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte("Error while trying to update the user"))
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func DeleteUser(w http.ResponseWriter, r *http.Request) {
+	params := mux.Vars(r)
+	ID, err := strconv.ParseUint(params["id"], 10, 64)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("Error while trying to read the params"))
+		return
+	}
+
+	db, err := database.Connect()
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("Error while trying to connect with the database"))
+		return
+	}
+	statement, err := db.Prepare("DELETE FROM usuarios  WHERE id = $1")
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("Error while trying to prepare the statement"))
+		return
+	}
+	defer statement.Close()
+
+	if _, err := statement.Exec(ID); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("Error while trying to delete the user"))
 		return
 	}
 
